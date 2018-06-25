@@ -31,32 +31,43 @@
 
 /* Test Array Attributes */
 
-#include <iostream>
-#include <iterator>
-#include <fstream>
+#include <assert.h>
 #include "sgx_trts.h"
 #include "../Enclave.h"
 #include "Enclave_t.h"
-#include <cstring>
+#define MAXLEN 1024
 
 /*
  * [in]: Ecall: Copy password inside
  */
 void authenticate(char *password)
 {
-        std::ifstream infile("enclavepass.txt");
-        std::string index;
-        str::string realpass;
+	FILE *file;
+	char buff[MAXLEN];
+	bzero(buff, MAXLEN);
+	int i = 0;
+	int c;
 
-        /* Convert char * param to std::string */
-        std::string str(password);
+	file = fopen("enclavepass.txt", "r");
+	if (file == NULL)
+		exit(EXIT_FAILURE);
 
-        while (infile >> index >> realpass) {
-                if (!index.compare("password")) {
-                        assert(realpass == password);
-                }
-        }
-        return;
+	while ((c = (char)fgetc(file)) != ',') {
+		buff[i++] = c;
+	}
+	
+	/* If the first word was not password, then the file has been tampered with */	
+	if (!strncmp(buff, "password", i-1)) {
+		i = 0;
+		bzero(buff, MAXLEN);
+		while ((c = (char)fgetc(file)) != '\n') {
+			buff[i++] = c;
+		}
+		assert(!strncmp(buff, password, sizeof(password)));
+	}
+
+	fclose(file);
+	return;
 }
 
 /*
@@ -64,17 +75,37 @@ void authenticate(char *password)
  */
 void viewpassword(char *choice, char *input)
 {
-        std::ifstream infile("enclavepass.txt");
-        std::string index;
-        std::string realpass;
+	FILE *file;
+	char buff[BUFFLEN];
+	bzero(buff, MAXLEN);
 
-        /* Convert char * param to std::string */
-        std::string str(choice);
+	file = fopen("enclavepass.txt", "r");
+	if (file == NULL)
+		exit(EXIT_FAILURE);
 
-        while (infile >> index >> realpass) {
-                if (!index.compare(choice)) {
-                        strncpy(input, realpass.c_str(), sizeof(input) - 1);
-                }
-        }
-        return;
+	while(true) {
+		int i = 0;
+		int c;
+
+		bzero(buff, MAXLEN);
+		while ((c = (char)fgetc(file)) != ',') {
+			buff[i++] = c;
+		}
+
+		/* If the first word was not the account, then we skip to the next line */
+		if (strncmp(buff, choice, sizeof(choice))) {
+			while ((c = (char)fgetc(file)) != '\n');
+		}
+		else {
+			i = 0;
+			bzero(buff, MAXLEN);
+			while ((c = (char)fgetc(file)) != '\n') {
+				buff[i++] = c;	
+			}
+			strncpy(input, buff, sizeof(buff));
+		}
+	}
+	return;
 }
+
+
