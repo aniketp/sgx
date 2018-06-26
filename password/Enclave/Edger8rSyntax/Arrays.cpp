@@ -26,14 +26,13 @@ void authenticate(char *password)
 	while ((c = (char)fgetc(file)) != ',') {
 		buff[i++] = c;
 	}
-	
-	/* If the first word was not password, then the file has been tampered with */	
+
+	/* If the first word was not password, then the file has been tampered with */
 	if (!strncmp(buff, "password", i-1)) {
 		i = 0;
 		bzero(buff, MAXLEN);
-		while ((c = (char)fgetc(file)) != '\n') {
+		while ((c = (char)fgetc(file)) != '\n')
 			buff[i++] = c;
-		}
 		assert(!strncmp(buff, password, sizeof(password)));
 	}
 
@@ -47,14 +46,15 @@ void authenticate(char *password)
 void viewpassword(char *choice, char *input)
 {
 	FILE *file;
-	char buff[BUFFLEN];
+	char buff[MAXLEN];
 	bzero(buff, MAXLEN);
+	char *term = "end";	/* This must be present at the end of file */
 
 	file = fopen("enclavepass.txt", "r");
 	if (file == NULL)
 		exit(EXIT_FAILURE);
 
-	while(true) {
+	while(1) {
 		int i = 0;
 		int c;
 
@@ -63,25 +63,26 @@ void viewpassword(char *choice, char *input)
 			buff[i++] = c;
 		}
 
-		/* If the first word was not the account, then we skip to the next line */
+		/*
+		 * If the first word was not the account, then we skip
+		 * to the next line.
+		 */
 		if (strncmp(buff, choice, sizeof(choice))) {
-			while ((c = (char)fgetc(file)) != '\n') {
-				/* Check if we've reached the end of file */
-				if (fgetc(file) == EOF)
-					break;
-			}
+			if (strncmp(buff, term, sizeof(term))) {
+				while ((c = (char)fgetc(file)) != '\n');
+			} else break;
 		}
 		else {
+			/* Account matched: Print the password to STDOUT */
 			i = 0;
 			bzero(buff, MAXLEN);
 			while ((c = (char)fgetc(file)) != '\n') {
-				buff[i++] = c;	
+				buff[i++] = c;
 			}
 			strncpy(input, buff, sizeof(buff));
 			break;
 		}
 	}
+	fclose(file);
 	return;
 }
-
-
