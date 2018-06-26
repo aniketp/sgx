@@ -1,88 +1,69 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
 #include "sgx_trts.h"
 #include "../Enclave.h"
 #include "Enclave_t.h"
 
-#define MAXLEN 1024
-
-/*
- * [in]: Ecall: Copy password inside
+/* ecall_array_user_check:
+ *   [user_check] parameter does not perfrom copy operations.
  */
-void authenticate(char *password)
+void ecall_array_user_check(int arr[4])
 {
-	FILE *file;
-	char buff[MAXLEN];
-	bzero(buff, MAXLEN);
-	int i = 0;
-	int c;
+    if (sgx_is_outside_enclave(arr, 4 * sizeof(int)) != 1)
+        abort();
 
-	file = fopen("enclavepass.txt", "r");
-	if (file == NULL)
-		exit(EXIT_FAILURE);
-
-	while ((c = (char)fgetc(file)) != ',') {
-		buff[i++] = c;
-	}
-
-	/* If the first word was not password, then the file has been tampered with */
-	if (!strncmp(buff, "password", i-1)) {
-		i = 0;
-		bzero(buff, MAXLEN);
-		while ((c = (char)fgetc(file)) != '\n')
-			buff[i++] = c;
-		assert(!strncmp(buff, password, sizeof(password)));
-	}
-
-	fclose(file);
-	return;
+    for (int i = 0; i < 4; i++) {
+        assert(arr[i] == i);
+        arr[i] = 3 - i;
+    }
 }
 
-/*
- * [in-out] Ecall: Copy input buffer and export the relevant password
+/* ecall_array_in:
+ *   arr[] is copied to trusted domain, but modified
+ *   results will not be reflected to the untrusted side.
  */
-void viewpassword(char *choice, char *input)
+void ecall_array_in(int arr[4])
 {
-	FILE *file;
-	char buff[MAXLEN];
-	bzero(buff, MAXLEN);
-	char *term = "end";	/* This must be present at the end of file */
+    for (int i = 0; i < 4; i++) {
+        assert(arr[i] == i);
+        arr[i] = (3 - i);
+    }
+}
 
-	file = fopen("enclavepass.txt", "r");
-	if (file == NULL)
-		exit(EXIT_FAILURE);
+/* ecall_array_out:
+ *   arr[] is allocated inside the enclave, and it will be copied
+ *   to the untrusted side
+ */
+void ecall_array_out(int arr[4])
+{
+    for (int i = 0; i < 4; i++) {
+        /* arr is not copied from App */
+        assert(arr[i] == 0);
+        arr[i] = (3 - i);
+    }
+}
 
-	while(1) {
-		int i = 0;
-		int c;
+/* ecall_array_in_out:
+ *   arr[] will be allocated inside the enclave, content of arr[] will be copied either.
+ *   After ECALL returns, the results will be copied to the outside.
+ */
+void ecall_array_in_out(int arr[4])
+{
+    for (int i = 0; i < 4; i++) {
+        assert(arr[i] == i);
+        arr[i] = (3 - i);
+    }
+}
 
-		bzero(buff, MAXLEN);
-		while ((c = (char)fgetc(file)) != ',') {
-			buff[i++] = c;
-		}
+/* ecall_array_isary:
+ *   [isary] tells Edger8r that user defined 'array_t' is an array type.
+ */
+void ecall_array_isary(array_t arr)
+{
+    if (sgx_is_outside_enclave(arr, sizeof(array_t)) != 1)
+        abort();
 
-		/*
-		 * If the first word was not the account, then we skip
-		 * to the next line.
-		 */
-		if (strncmp(buff, choice, sizeof(choice))) {
-			if (strncmp(buff, term, sizeof(term))) {
-				while ((c = (char)fgetc(file)) != '\n');
-			} else break;
-		}
-		else {
-			/* Account matched: Print the password to STDOUT */
-			i = 0;
-			bzero(buff, MAXLEN);
-			while ((c = (char)fgetc(file)) != '\n') {
-				buff[i++] = c;
-			}
-			strncpy(input, buff, sizeof(buff));
-			break;
-		}
-	}
-	fclose(file);
-	return;
+    int n = sizeof(array_t)/sizeof(arr[0]);
+    for (int i = 0; i < n; i++) {
+        assert(arr[i] == i);
+        arr[i] = (n - 1 - i);
+    }
 }
