@@ -197,21 +197,14 @@ void ocall_print_string(const char *str)
     printf("%s", str);
 }
 
-void authenticate(char *password)
+void authenticate(FILE *file, char *password)
 {
-	FILE *file;
 	char buff[MAXLEN];
 	bzero(buff, MAXLEN);
-	int i = 0;
-	int c;
+        int c, i = 0;
 
-	file = fopen("enclavepass.txt", "r");
-	if (file == NULL)
-		exit(EXIT_FAILURE);
-
-	while ((c = (char)fgetc(file)) != ',') {
+	while ((c = (char)fgetc(file)) != ',')
 		buff[i++] = c;
-	}
 
 	/* If the first word was not password, then the file has been tampered with */
 	if (!strncmp(buff, "password", i-1)) {
@@ -221,31 +214,21 @@ void authenticate(char *password)
 			buff[i++] = c;
 		assert(!strncmp(buff, password, sizeof(password)));
 	}
-
-	fclose(file);
 	return;
 }
 
-void viewpassword(char choice[])
+void viewpassword(FILE *file, char choice[])
 {
-	FILE *file;
 	char buff[MAXLEN];
 	bzero(buff, MAXLEN);
 	/* This must be present at the end of file */
         char term[MAXLEN] = "end";
 
-	file = fopen("enclavepass.txt", "r");
-	if (file == NULL)
-		exit(EXIT_FAILURE);
-
 	while(TRUE) {
-		int i = 0;
-		int c;
-
+		int c, i = 0;
 		bzero(buff, MAXLEN);
-		while ((c = (char)fgetc(file)) != ',') {
+		while ((c = (char)fgetc(file)) != ',')
 			buff[i++] = c;
-		}
 
 		/*
 		 * If the first word was not the account, then we skip
@@ -267,7 +250,6 @@ void viewpassword(char choice[])
 			break;
 		}
 	}
-	fclose(file);
 	return;
 }
 
@@ -278,8 +260,9 @@ int SGX_CDECL main(int argc, char *argv[])
     (void)(argc);
     (void)(argv);
 
-    char choice[MAXLEN];
+    FILE *file;
     char *password;
+    char choice[MAXLEN];
     password = (char*)malloc(MAXLEN*sizeof(char));
 
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
@@ -294,8 +277,11 @@ int SGX_CDECL main(int argc, char *argv[])
     printf("Enter Password\n");
     scanf("%s", password);
 
+    if ((file = fopen("enclavepass.txt", "r")) == NULL)
+        exit(EXIT_FAILURE);
+
     // Call authentication routine
-    authenticate(password);
+    authenticate(file, password);
     // if (ret != SGX_SUCCESS)
     //     abort();
 
@@ -303,10 +289,11 @@ int SGX_CDECL main(int argc, char *argv[])
     printf("Enter your choice\n");
     scanf("%s", choice);
 
-    viewpassword(choice);
+    viewpassword(file, choice);
     // if (ret != SGX_SUCCESS)
     //     abort();
 
+    fclose(file);
     /* Destroy the enclave */
     sgx_destroy_enclave(global_eid);
     return 0;
