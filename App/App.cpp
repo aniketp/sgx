@@ -1,12 +1,8 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <assert.h>
+#include <unistd.h>
+#include <pwd.h>
 
-# include <unistd.h>
-# include <pwd.h>
-# define MAX_PATH FILENAME_MAX
-# define MAXLEN 1024
+#define MAX_PATH FILENAME_MAX
+#define MAXLEN 1024
 
 #include "sgx_urts.h"
 #include "App.h"
