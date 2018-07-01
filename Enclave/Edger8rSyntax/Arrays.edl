@@ -44,6 +44,7 @@ enclave {
          */
 
         public void ecall_array_in_out([in, out] int arr[4]);
+        public void ecall_authenticate([in] char buff[], [out] char p_out[]);
 
         /*
          * [isary]:
