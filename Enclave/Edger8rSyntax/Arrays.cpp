@@ -57,28 +57,24 @@ void ecall_array_in_out(int arr[4])
 /*
  *   ecall_authenticate(): [IN, OUT]
  */
-void ecall_authenticate(char buff[], char p_out[])
+void ecall_authenticate(const uint8_t *buff, uint8_t *p_out)
 {
         int retval;
-        unsigned char nonce[12];
+        uint8_t *nonce;
 
         /* Generate a random initialization vector */
-        if ((retval = sgx_read_rand(nonce, 12)) != SGX_SUCCESS)
+        if ((retval = sgx_read_rand((unsigned char *)nonce, 12)) != SGX_SUCCESS)
                 abort();
 
-        uint8_t key[SGX_AESGCM_KEY_SIZE];
-        for (int i =0; i < SGX_AESGCM_KEY_SIZE; i++) {
-                key[i] = 0x23;
-        }
-
-        const sgx_aes_gcm_128bit_key_t *p_key = key;
-        const uint8_t p_src = (const uint8_t) buff;
-        const uint8_t p_iv = (const uint8_t) nonce;
+        const sgx_aes_gcm_128bit_key_t p_key[16] = {0x23,0x23,0x23,0x23,0x23,0x23,
+        0x23,0x23,0x23,0x23,0x23,0x23,0x23,0x23,0x23,0x23};
+        const uint8_t *p_src = buff;
+        const uint8_t *p_iv = nonce;
         uint32_t src_len = sizeof(p_src);
         uint32_t iv_len = sizeof(p_iv);
 
         retval = sgx_rijndael128GCM_encrypt(p_key, p_src, src_len,
-                (uint8_t)p_out, p_iv, iv_len, NULL, 0, NULL);
+                p_out, p_iv, iv_len, NULL, 0, NULL);
 
         if (retval != SGX_SUCCESS)
                 abort();
